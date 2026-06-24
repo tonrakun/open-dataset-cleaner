@@ -1,0 +1,38 @@
+[package]
+name = "open-dataset-cleaner"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "odc"
+path = "src/main.rs"
+
+[lib]
+name = "odc_core"
+path = "src/lib.rs"
+
+[dependencies]
+clap = { version = "4.6", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+rayon = "1.12"
+lingua = { version = "1.8.0", default-features = false, features = ["japanese", "english"] }
+globset = "0.4"
+walkdir = "2.5"
+anyhow = "1"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+unicode-segmentation = "1"
+regex = "1"
+once_cell = "1"
+
+[features]
+default = []
+perplexity = []
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+tempfile = "3"

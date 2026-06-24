@@ -1,0 +1,27 @@
+[input]
+format = "jsonl"
+paths = []
+
+[output]
+path = "placeholder.jsonl"
+write_rejected = true
+
+[scoring.language]
+allow = ["ja", "en"]
+max_mixed_ratio = 0.5
+
+[scoring.text_quality]
+max_duplicate_line_ratio = 0.5
+max_symbol_ratio = 0.9
+
+[filters.thresholds]
+reject_on_residual_html = true
+reject_on_residual_url = false
+
+[runtime]
+threads = 2
+batch_size = 10
+log_level = "warn"
+
+[stats]
+format = "json"

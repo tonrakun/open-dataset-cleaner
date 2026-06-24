@@ -1,0 +1,136 @@
+use assert_cmd::Command;
+use std::fs;
+
+fn fixtures_dir() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures")
+}
+
+fn run_odc(args: &[&str]) -> assert_cmd::assert::Assert {
+    Command::cargo_bin("odc").unwrap().args(args).assert()
+}
+
+#[test]
+fn run_jsonl_accepts_and_rejects_as_expected() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = dir.path().join("out.jsonl");
+    let stats = dir.path().join("out.stats.json");
+    let config = fixtures_dir().join("configs/basic.toml");
+    let input_glob = fixtures_dir().join("jsonl/sample.jsonl");
+
+    run_odc(&[
+        "run",
+        "--config",
+        config.to_str().unwrap(),
+        "--input",
+        input_glob.to_str().unwrap(),
+        "--output",
+        output.to_str().unwrap(),
+        "--stats-output",
+        stats.to_str().unwrap(),
+    ])
+    .success();
+
+    let accepted_lines: Vec<String> = fs::read_to_string(&output)
+        .unwrap()
+        .lines()
+        .map(|l| l.to_string())
+        .collect();
+    assert_eq!(accepted_lines.len(), 2, "ja/enの2件のみ採用されるはず");
+
+    let rejected_path = std::path::PathBuf::from(format!("{}.rejected.jsonl", output.to_str().unwrap()));
+    let rejected_lines: Vec<String> = fs::read_to_string(&rejected_path)
+        .unwrap()
+        .lines()
+        .map(|l| l.to_string())
+        .collect();
+    assert_eq!(rejected_lines.len(), 2, "HTML残留行と重複行率超過の2件が除外されるはず");
+
+    let stats_json: serde_json::Value = serde_json::from_str(&fs::read_to_string(&stats).unwrap()).unwrap();
+    assert_eq!(stats_json["summary"]["total_input_records"], 4);
+    assert_eq!(stats_json["summary"]["accepted_records"], 2);
+    assert_eq!(stats_json["summary"]["rejected_records"], 2);
+    assert_eq!(
+        stats_json["rejection_reasons"]["residual_html_detected"],
+        1
+    );
+    assert_eq!(
+        stats_json["rejection_reasons"]["duplicate_line_ratio_exceeded"],
+        1
+    );
+}
+
+#[test]
+fn run_is_idempotent_for_same_input_and_config() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = fixtures_dir().join("configs/basic.toml");
+    let input_glob = fixtures_dir().join("jsonl/sample.jsonl");
+
+    let output1 = dir.path().join("run1.jsonl");
+    let output2 = dir.path().join("run2.jsonl");
+
+    for output in [&output1, &output2] {
+        run_odc(&[
+            "run",
+            "--config",
+            config.to_str().unwrap(),
+            "--input",
+            input_glob.to_str().unwrap(),
+            "--output",
+            output.to_str().unwrap(),
+            "--stats-output",
+            dir.path().join(format!("{}.stats.json", output.display())).to_str().unwrap(),
+        ])
+        .success();
+    }
+
+    let content1 = fs::read_to_string(&output1).unwrap();
+    let content2 = fs::read_to_string(&output2).unwrap();
+    assert_eq!(content1, content2, "同一入力・同一設定なら出力は一致するはず");
+}
+
+#[test]
+fn run_with_no_matching_input_succeeds_with_empty_output() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = dir.path().join("empty.jsonl");
+    let config = fixtures_dir().join("configs/basic.toml");
+    let no_match_glob = fixtures_dir().join("jsonl/does_not_exist_*.jsonl");
+
+    run_odc(&[
+        "run",
+        "--config",
+        config.to_str().unwrap(),
+        "--input",
+        no_match_glob.to_str().unwrap(),
+        "--output",
+        output.to_str().unwrap(),
+        "--dry-run",
+    ])
+    .success();
+}
+
+#[test]
+fn run_plain_text_newline_delimited() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = dir.path().join("plain_out.jsonl");
+    let config = fixtures_dir().join("configs/basic.toml");
+    let input = fixtures_dir().join("plain/sample.txt");
+
+    run_odc(&[
+        "run",
+        "--config",
+        config.to_str().unwrap(),
+        "--input",
+        input.to_str().unwrap(),
+        "--input-format",
+        "text",
+        "--output",
+        output.to_str().unwrap(),
+        "--stats-output",
+        dir.path().join("plain.stats.json").to_str().unwrap(),
+    ])
+    .success();
+
+    let lines: Vec<String> = fs::read_to_string(&output).unwrap().lines().map(|l| l.to_string()).collect();
+    // 空行2行はスキップされ、残り3行が個別レコードとして採用される
+    assert_eq!(lines.len(), 3);
+}

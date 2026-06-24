@@ -1,0 +1,4 @@
+{"text": "これは日本語のテキストです。今日は天気がいいですね。明日も晴れるといいなと思います。", "url": "http://example.com/1", "id": 1}
+{"text": "This is an English sentence used for testing the pipeline. It should be accepted without issues.", "url": "http://example.com/2", "id": 2}
+{"text": "<p>This text contains residual HTML markup that should be rejected</p>", "id": 3}
+{"text": "foo\nfoo\nfoo\nfoo\nbar\n", "id": 4}

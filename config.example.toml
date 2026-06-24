@@ -1,0 +1,36 @@
+[input]
+format = "jsonl"            # text | jsonl （warc/htmlを指定した場合は明示エラーで終了）
+paths = ["./data/**/*.jsonl"]
+text_field = "text"
+meta_fields = ["url", "id"]
+
+[output]
+format = "jsonl"
+path = "./out/dataset.jsonl"
+write_rejected = true
+rejected_path = "./out/dataset.rejected.jsonl"
+
+[extract]
+validate_residual = true
+
+[scoring.language]
+allow = ["ja", "en"]
+max_mixed_ratio = 0.2
+
+[scoring.text_quality]
+max_duplicate_line_ratio = 0.3
+max_symbol_ratio = 0.15
+perplexity_enabled = false   # trueでも警告を出し無視（M1はスタブ）
+
+[filters.thresholds]
+reject_on_residual_html = true
+reject_on_residual_url = false
+
+[runtime]
+threads = 0                  # 0 = 論理コア数
+batch_size = 1000
+log_level = "info"
+
+[stats]
+output_path = "./out/dataset.stats.json"
+format = "json"
