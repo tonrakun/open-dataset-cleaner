@@ -9,7 +9,7 @@ mod stats;
 
 pub use dedup::DedupConfig;
 pub use extract::ExtractConfig;
-pub use filters::{FiltersConfig, ThresholdConfig};
+pub use filters::{Condition, ConditionValue, FiltersConfig, NamedRule, Op, Rule, ThresholdConfig};
 pub use input::{InputConfig, InputFormat, PlainTextMode};
 pub use output::{OutputConfig, OutputFormat};
 pub use runtime::RuntimeConfig;
@@ -61,6 +61,7 @@ impl Config {
             tracing::warn!("runtime.checkpoint_dir はM1では未対応のため無視されます");
         }
         self.dedup.validate()?;
+        self.filters.validate()?;
         Ok(())
     }
 }

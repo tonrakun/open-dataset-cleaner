@@ -62,6 +62,42 @@ fn run_jsonl_accepts_and_rejects_as_expected() {
 }
 
 #[test]
+fn run_and_or_not_combination_rule_rejects_matching_records() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = dir.path().join("rules_out.jsonl");
+    let stats = dir.path().join("rules_out.stats.json");
+    let config = fixtures_dir().join("configs/rules.toml");
+    let input_glob = fixtures_dir().join("jsonl/sample.jsonl");
+
+    run_odc(&[
+        "run",
+        "--config",
+        config.to_str().unwrap(),
+        "--input",
+        input_glob.to_str().unwrap(),
+        "--output",
+        output.to_str().unwrap(),
+        "--stats-output",
+        stats.to_str().unwrap(),
+    ])
+    .success();
+
+    let accepted_lines: Vec<String> =
+        fs::read_to_string(&output).unwrap().lines().map(|l| l.to_string()).collect();
+    assert_eq!(accepted_lines.len(), 2, "ja/enの2件のみ採用されるはず");
+
+    let stats_json: serde_json::Value = serde_json::from_str(&fs::read_to_string(&stats).unwrap()).unwrap();
+    assert_eq!(stats_json["summary"]["total_input_records"], 4);
+    assert_eq!(stats_json["summary"]["accepted_records"], 2);
+    assert_eq!(stats_json["summary"]["rejected_records"], 2);
+    assert_eq!(
+        stats_json["rejection_reasons"]["custom_rule:unsupported_or_repetitive"],
+        2,
+        "残留HTML行と重複行率超過の両方がAND/OR/NOT組み合わせルールで除外されるはず"
+    );
+}
+
+#[test]
 fn run_dedup_rejects_exact_and_near_duplicates() {
     let dir = tempfile::tempdir().unwrap();
     let output = dir.path().join("dedup_out.jsonl");

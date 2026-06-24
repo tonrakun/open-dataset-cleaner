@@ -1,0 +1,34 @@
+[input]
+format = "jsonl"
+paths = []
+
+[output]
+path = "placeholder.jsonl"
+write_rejected = true
+
+[scoring.language]
+allow = []
+
+[scoring.text_quality]
+
+[filters.thresholds]
+reject_on_residual_html = false
+reject_on_residual_url = false
+
+[[filters.rules]]
+name = "unsupported_or_repetitive"
+when = { any = [
+    { field = "has_residual_html", op = "eq", value = true },
+    { all = [
+        { field = "duplicate_line_ratio", op = "gt", value = 0.3 },
+        { not = { field = "detected_language", op = "eq", value = "ja" } },
+    ] },
+] }
+
+[runtime]
+threads = 2
+batch_size = 10
+log_level = "warn"
+
+[stats]
+format = "json"

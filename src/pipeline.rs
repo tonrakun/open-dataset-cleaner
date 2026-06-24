@@ -107,7 +107,7 @@ pub fn run(config: &Config, dry_run: bool) -> anyhow::Result<PipelineResult> {
                             extractor.as_ref(),
                             &scorers,
                             &config.scoring,
-                            &config.filters.thresholds,
+                            &config.filters,
                         )
                     })
                     .collect();
@@ -178,7 +178,7 @@ fn process_one(
     extractor: &dyn Extractor,
     scorers: &[Box<dyn Scorer>],
     scoring_cfg: &crate::config::ScoringConfig,
-    threshold_cfg: &crate::config::ThresholdConfig,
+    filters_cfg: &crate::config::FiltersConfig,
 ) -> RecordOutcome {
     let text = match extractor.extract(&raw) {
         Ok(t) => t,
@@ -200,7 +200,7 @@ fn process_one(
     };
     let mut record = raw;
     record.text = text;
-    match filter::evaluate(&scores, scoring_cfg, threshold_cfg) {
+    match filter::evaluate(&scores, scoring_cfg, filters_cfg) {
         Ok(()) => RecordOutcome::Accepted { record, scores },
         Err(reason) => RecordOutcome::Rejected { record, scores, reason },
     }

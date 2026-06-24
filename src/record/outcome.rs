@@ -14,20 +14,22 @@ pub enum RejectionReason {
     DuplicateExact,
     DuplicateNearDuplicate,
     ExtractionError(String),
+    CustomRule(String),
 }
 
 impl RejectionReason {
-    pub fn as_key(&self) -> &'static str {
+    pub fn as_key(&self) -> String {
         match self {
-            RejectionReason::LanguageNotAllowed => "language_not_allowed",
-            RejectionReason::MixedLanguageRatioExceeded => "mixed_language_ratio_exceeded",
-            RejectionReason::DuplicateLineRatioExceeded => "duplicate_line_ratio_exceeded",
-            RejectionReason::SymbolRatioExceeded => "symbol_ratio_exceeded",
-            RejectionReason::ResidualHtmlDetected => "residual_html_detected",
-            RejectionReason::ResidualUrlDetected => "residual_url_detected",
-            RejectionReason::DuplicateExact => "duplicate_exact",
-            RejectionReason::DuplicateNearDuplicate => "duplicate_near_duplicate",
-            RejectionReason::ExtractionError(_) => "extraction_error",
+            RejectionReason::LanguageNotAllowed => "language_not_allowed".to_string(),
+            RejectionReason::MixedLanguageRatioExceeded => "mixed_language_ratio_exceeded".to_string(),
+            RejectionReason::DuplicateLineRatioExceeded => "duplicate_line_ratio_exceeded".to_string(),
+            RejectionReason::SymbolRatioExceeded => "symbol_ratio_exceeded".to_string(),
+            RejectionReason::ResidualHtmlDetected => "residual_html_detected".to_string(),
+            RejectionReason::ResidualUrlDetected => "residual_url_detected".to_string(),
+            RejectionReason::DuplicateExact => "duplicate_exact".to_string(),
+            RejectionReason::DuplicateNearDuplicate => "duplicate_near_duplicate".to_string(),
+            RejectionReason::ExtractionError(_) => "extraction_error".to_string(),
+            RejectionReason::CustomRule(name) => format!("custom_rule:{}", name),
         }
     }
 }

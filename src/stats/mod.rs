@@ -40,7 +40,7 @@ impl StatsAccumulator {
             RecordOutcome::Rejected { scores, reason, .. } => {
                 self.rejected += 1;
                 self.push_scores(scores);
-                *self.rejection_reasons.entry(reason.as_key().to_string()).or_insert(0) += 1;
+                *self.rejection_reasons.entry(reason.as_key()).or_insert(0) += 1;
             }
             RecordOutcome::Error { .. } => {
                 self.errors += 1;
