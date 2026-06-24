@@ -62,6 +62,41 @@ fn run_jsonl_accepts_and_rejects_as_expected() {
 }
 
 #[test]
+fn run_dedup_rejects_exact_and_near_duplicates() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = dir.path().join("dedup_out.jsonl");
+    let stats = dir.path().join("dedup_out.stats.json");
+    let config = fixtures_dir().join("configs/dedup.toml");
+    let input = fixtures_dir().join("jsonl/dedup.jsonl");
+
+    run_odc(&[
+        "run",
+        "--config",
+        config.to_str().unwrap(),
+        "--input",
+        input.to_str().unwrap(),
+        "--output",
+        output.to_str().unwrap(),
+        "--stats-output",
+        stats.to_str().unwrap(),
+    ])
+    .success();
+
+    let accepted_lines: Vec<String> = fs::read_to_string(&output)
+        .unwrap()
+        .lines()
+        .map(|l| l.to_string())
+        .collect();
+    assert_eq!(accepted_lines.len(), 2, "完全一致と近似重複の2件が除外され、残り2件のみ採用されるはず");
+
+    let stats_json: serde_json::Value = serde_json::from_str(&fs::read_to_string(&stats).unwrap()).unwrap();
+    assert_eq!(stats_json["summary"]["total_input_records"], 4);
+    assert_eq!(stats_json["summary"]["accepted_records"], 2);
+    assert_eq!(stats_json["rejection_reasons"]["duplicate_exact"], 1);
+    assert_eq!(stats_json["rejection_reasons"]["duplicate_near_duplicate"], 1);
+}
+
+#[test]
 fn run_is_idempotent_for_same_input_and_config() {
     let dir = tempfile::tempdir().unwrap();
     let config = fixtures_dir().join("configs/basic.toml");

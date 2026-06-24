@@ -1,3 +1,4 @@
+mod dedup;
 mod extract;
 mod filters;
 mod input;
@@ -6,6 +7,7 @@ mod runtime;
 mod scoring;
 mod stats;
 
+pub use dedup::DedupConfig;
 pub use extract::ExtractConfig;
 pub use filters::{FiltersConfig, ThresholdConfig};
 pub use input::{InputConfig, InputFormat, PlainTextMode};
@@ -30,10 +32,10 @@ pub struct Config {
     pub runtime: RuntimeConfig,
     #[serde(default)]
     pub stats: StatsConfig,
-
-    // 将来セクション(M2以降)。M1では受容するが効果なし=警告のみ。
     #[serde(default)]
-    pub dedup: Option<toml::Value>,
+    pub dedup: DedupConfig,
+
+    // 将来セクション(M5以降)。現時点では受容するが効果なし=警告のみ。
     #[serde(default)]
     pub plugins: Option<toml::Value>,
 }
@@ -45,11 +47,8 @@ impl Config {
         let config: Config = toml::from_str(&raw)
             .map_err(|e| anyhow::anyhow!("設定ファイル {} の解析に失敗: {}", path.display(), e))?;
         config.validate()?;
-        if config.dedup.is_some() {
-            tracing::warn!("[dedup] セクションはM1では未対応のため無視されます");
-        }
         if config.plugins.is_some() {
-            tracing::warn!("[[plugins]] セクションはM1では未対応のため無視されます");
+            tracing::warn!("[[plugins]] セクションはM5まで未対応のため無視されます");
         }
         Ok(config)
     }
@@ -61,6 +60,7 @@ impl Config {
         if self.runtime.checkpoint_dir.is_some() {
             tracing::warn!("runtime.checkpoint_dir はM1では未対応のため無視されます");
         }
+        self.dedup.validate()?;
         Ok(())
     }
 }
@@ -82,6 +82,20 @@ mod tests {
         assert!(config.filters.thresholds.reject_on_residual_html);
         assert_eq!(config.runtime.batch_size, 1000);
         assert_eq!(config.stats.format, StatsFormat::Json);
+        assert!(config.dedup.exact);
+        assert!(config.dedup.minhash_lsh);
+        assert_eq!(config.dedup.similarity_threshold, 0.85);
+        assert_eq!(config.dedup.num_hashes, 128);
+        assert_eq!(config.dedup.num_bands, 16);
+    }
+
+    #[test]
+    fn rejects_dedup_num_hashes_not_divisible_by_num_bands() {
+        let mut config = Config::default();
+        config.dedup.minhash_lsh = true;
+        config.dedup.num_hashes = 100;
+        config.dedup.num_bands = 7;
+        assert!(config.validate().is_err());
     }
 
     #[test]

@@ -1,0 +1,4 @@
+{"text": "This is an English sentence used for testing the dedup pipeline behavior in this fixture file today.", "url": "http://example.com/1", "id": 1}
+{"text": "This is an English sentence used for testing the dedup pipeline behavior in this fixture file today.", "url": "http://example.com/2", "id": 2}
+{"text": "This is an English sentence used for testing the dedup pipeline behavior in this fixture file tonight.", "url": "http://example.com/3", "id": 3}
+{"text": "A completely unrelated paragraph about gardening tips for growing tomatoes in containers outdoors.", "url": "http://example.com/4", "id": 4}

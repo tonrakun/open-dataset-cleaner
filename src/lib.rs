@@ -1,5 +1,6 @@
 pub mod cli;
 pub mod config;
+pub mod dedup;
 pub mod extract;
 pub mod filter;
 pub mod input;

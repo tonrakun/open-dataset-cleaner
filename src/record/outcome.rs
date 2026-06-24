@@ -11,6 +11,8 @@ pub enum RejectionReason {
     SymbolRatioExceeded,
     ResidualHtmlDetected,
     ResidualUrlDetected,
+    DuplicateExact,
+    DuplicateNearDuplicate,
     ExtractionError(String),
 }
 
@@ -23,6 +25,8 @@ impl RejectionReason {
             RejectionReason::SymbolRatioExceeded => "symbol_ratio_exceeded",
             RejectionReason::ResidualHtmlDetected => "residual_html_detected",
             RejectionReason::ResidualUrlDetected => "residual_url_detected",
+            RejectionReason::DuplicateExact => "duplicate_exact",
+            RejectionReason::DuplicateNearDuplicate => "duplicate_near_duplicate",
             RejectionReason::ExtractionError(_) => "extraction_error",
         }
     }

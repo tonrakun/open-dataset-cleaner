@@ -32,6 +32,7 @@ scraper = "0.20"
 ego-tree = "0.6"
 arrow = "53"
 parquet = "53"
+blake3 = "1"
 
 [features]
 default = []

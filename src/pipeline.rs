@@ -1,4 +1,5 @@
 use crate::config::{Config, InputFormat, OutputFormat};
+use crate::dedup::Deduplicator;
 use crate::extract::{Extractor, HtmlExtractor, PassthroughExtractor};
 use crate::filter;
 use crate::input::{discover_input_files, open_source};
@@ -59,6 +60,7 @@ pub fn run(config: &Config, dry_run: bool) -> anyhow::Result<PipelineResult> {
         })
     };
 
+    let mut dedup = Deduplicator::from_config(&config.dedup);
     let mut accumulator = StatsAccumulator::default();
     let start = Instant::now();
     let batch_size = config.runtime.batch_size.max(1);
@@ -109,6 +111,10 @@ pub fn run(config: &Config, dry_run: bool) -> anyhow::Result<PipelineResult> {
                         )
                     })
                     .collect();
+                // 重複除去は採用済みレコード間の共有状態を更新するため、
+                // スコアリングと異なり逐次処理する。
+                let outcomes: Vec<RecordOutcome> =
+                    outcomes.into_iter().map(|outcome| apply_dedup(outcome, &mut dedup)).collect();
 
                 let batch_stats = outcomes
                     .par_iter()
@@ -155,6 +161,16 @@ pub fn run(config: &Config, dry_run: bool) -> anyhow::Result<PipelineResult> {
     crate::stats::write_report(&report, stats_path.as_deref().map(Path::new), config.stats.format)?;
 
     Ok(PipelineResult { report })
+}
+
+fn apply_dedup(outcome: RecordOutcome, dedup: &mut Deduplicator) -> RecordOutcome {
+    match outcome {
+        RecordOutcome::Accepted { record, scores } => match dedup.check_and_insert(&record.text) {
+            Some(reason) => RecordOutcome::Rejected { record, scores, reason },
+            None => RecordOutcome::Accepted { record, scores },
+        },
+        other => other,
+    }
 }
 
 fn process_one(
