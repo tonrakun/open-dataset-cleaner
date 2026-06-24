@@ -186,9 +186,10 @@ checkpoint_dir = "./.checkpoints"
 
 ## 9. 非機能要件
 
-- [ ] Windows / Linux / macOS でビルド・実行可能（Windowsで確認済み。CIに`cargo test`を
-  ubuntu-latest/macos-13(x64)/macos-14(arm64)/windows-latestの全マッチアウトで実行する
-  ステップを追加済みだが、CI実行結果(グリーン)はまだ未確認のためチェック保留）
+- [x] Windows / Linux / macOS でビルド・実行可能（v1.0.0タグでCI実行しubuntu-latest/
+  macos-14(arm64)/windows-latestはグリーン確認済み。macos-13(x64)はGitHub Actions側で
+  ランナーが恒久的に割当されない既知の問題（queuedのまま進行しない）があり、release.yml
+  のビルドマトリクスから一時除外。macOS Intelバイナリは配布対象外）
 - [x] `perplexity` feature 無効時は KenLM への依存を一切持たない
 - [ ] 大規模入力（数百GB〜TB級 WARC）でもメモリ使用量が入力サイズに対して線形に増えない
 - [x] 処理は冪等（同一入力・同一設定で再実行すれば同一出力になる）
