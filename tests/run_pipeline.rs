@@ -1,4 +1,6 @@
+use arrow::array::{Array, StringArray};
 use assert_cmd::Command;
+use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use std::fs;
 
 fn fixtures_dir() -> std::path::PathBuf {
@@ -133,4 +135,80 @@ fn run_plain_text_newline_delimited() {
     let lines: Vec<String> = fs::read_to_string(&output).unwrap().lines().map(|l| l.to_string()).collect();
     // 空行2行はスキップされ、残り3行が個別レコードとして採用される
     assert_eq!(lines.len(), 3);
+}
+
+#[test]
+fn run_html_input_strips_boilerplate_and_converts_to_markdown() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = dir.path().join("html_out.jsonl");
+    let config = fixtures_dir().join("configs/html_markdown.toml");
+    let input = fixtures_dir().join("html/sample.html");
+
+    run_odc(&[
+        "run",
+        "--config",
+        config.to_str().unwrap(),
+        "--input",
+        input.to_str().unwrap(),
+        "--output",
+        output.to_str().unwrap(),
+        "--stats-output",
+        dir.path().join("html.stats.json").to_str().unwrap(),
+    ])
+    .success();
+
+    let lines: Vec<String> = fs::read_to_string(&output).unwrap().lines().map(|l| l.to_string()).collect();
+    assert_eq!(lines.len(), 1, "本文記事1件が採用されるはず");
+    let record: serde_json::Value = serde_json::from_str(&lines[0]).unwrap();
+    let text = record["text"].as_str().unwrap();
+    assert!(text.contains("# Welcome to Our Blog"), "見出しがMarkdown化されているはず: {text}");
+    assert!(text.contains("- First important point"), "リストがMarkdown化されているはず: {text}");
+    assert!(!text.contains("Home About Contact"), "navのボイラープレートは除去されるはず: {text}");
+    assert!(!text.contains("Buy our product now"), "広告classのボイラープレートは除去されるはず: {text}");
+    assert!(!text.contains("Copyright 2026"), "footerのボイラープレートは除去されるはず: {text}");
+}
+
+#[test]
+fn run_jsonl_input_outputs_parquet() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = dir.path().join("out.parquet");
+    let config = fixtures_dir().join("configs/basic.toml");
+    let input = fixtures_dir().join("jsonl/sample.jsonl");
+
+    run_odc(&[
+        "run",
+        "--config",
+        config.to_str().unwrap(),
+        "--input",
+        input.to_str().unwrap(),
+        "--output",
+        output.to_str().unwrap(),
+        "--output-format",
+        "parquet",
+        "--stats-output",
+        dir.path().join("parquet.stats.json").to_str().unwrap(),
+    ])
+    .success();
+
+    let file = fs::File::open(&output).unwrap();
+    let reader = ParquetRecordBatchReaderBuilder::try_new(file).unwrap().build().unwrap();
+    let batches: Vec<_> = reader.map(|b| b.unwrap()).collect();
+    let total_rows: usize = batches.iter().map(|b| b.num_rows()).sum();
+    assert_eq!(total_rows, 2, "ja/enの2件のみ採用されるはず");
+
+    let ids: Vec<String> = batches
+        .iter()
+        .flat_map(|b| {
+            let col = b.column_by_name("id").unwrap().as_any().downcast_ref::<StringArray>().unwrap();
+            (0..col.len()).map(|i| col.value(i).to_string()).collect::<Vec<_>>()
+        })
+        .collect();
+    assert!(ids.iter().any(|id| id.contains("sample.jsonl:1")));
+    assert!(ids.iter().any(|id| id.contains("sample.jsonl:2")));
+
+    let rejected_path = std::path::PathBuf::from(format!("{}.rejected.parquet", output.to_str().unwrap()));
+    let rejected_file = fs::File::open(&rejected_path).unwrap();
+    let rejected_reader = ParquetRecordBatchReaderBuilder::try_new(rejected_file).unwrap().build().unwrap();
+    let rejected_rows: usize = rejected_reader.map(|b| b.unwrap().num_rows()).sum();
+    assert_eq!(rejected_rows, 2, "HTML残留行と重複行率超過の2件が除外されるはず");
 }

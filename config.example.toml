@@ -1,17 +1,22 @@
 [input]
-format = "jsonl"            # text | jsonl （warc/htmlを指定した場合は明示エラーで終了）
+format = "jsonl"            # text | jsonl | warc | html
 paths = ["./data/**/*.jsonl"]
 text_field = "text"
 meta_fields = ["url", "id"]
 
 [output]
-format = "jsonl"
+format = "jsonl"            # jsonl | parquet
 path = "./out/dataset.jsonl"
 write_rejected = true
 rejected_path = "./out/dataset.rejected.jsonl"
 
 [extract]
 validate_residual = true
+strip_boilerplate = true    # HTML/WARC入力時にnav/footer/広告classなどを除去
+markdown = false            # trueでHTML本文をMarkdownに変換（falseはプレーンテキスト抽出）
+markdown_keep_headings = true
+markdown_keep_lists = true
+markdown_keep_links = false
 
 [scoring.language]
 allow = ["ja", "en"]

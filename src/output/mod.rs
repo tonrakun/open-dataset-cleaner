@@ -1,6 +1,8 @@
 pub mod jsonl;
+pub mod parquet;
 
 pub use jsonl::JsonlSink;
+pub use parquet::ParquetSink;
 
 use crate::record::{RawRecord, RejectionReason};
 use crate::scoring::ScoreSet;

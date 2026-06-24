@@ -1,5 +1,7 @@
+pub mod html;
 pub mod validate;
 
+pub use html::{HtmlExtractor, MarkdownOptions};
 pub use validate::{validate_extracted_text, ExtractionValidationReport};
 
 use crate::record::RawRecord;

@@ -1,4 +1,4 @@
-use crate::config::{Config, InputFormat, StatsFormat};
+use crate::config::{Config, InputFormat, OutputFormat, StatsFormat};
 use clap::Args;
 use std::path::PathBuf;
 
@@ -12,6 +12,8 @@ pub struct RunArgs {
     pub input_format: Option<String>,
     #[arg(long)]
     pub output: Option<String>,
+    #[arg(long = "output-format")]
+    pub output_format: Option<String>,
     #[arg(long)]
     pub threads: Option<usize>,
     #[arg(long = "batch-size")]
@@ -52,11 +54,20 @@ fn merge_cli(config: &mut Config, args: &RunArgs) -> anyhow::Result<()> {
         config.input.format = match input_format.as_str() {
             "text" => InputFormat::Text,
             "jsonl" => InputFormat::Jsonl,
+            "warc" => InputFormat::Warc,
+            "html" => InputFormat::Html,
             other => anyhow::bail!("不正な --input-format です: {}", other),
         };
     }
     if let Some(output) = &args.output {
         config.output.path = output.clone();
+    }
+    if let Some(output_format) = &args.output_format {
+        config.output.format = match output_format.as_str() {
+            "jsonl" => OutputFormat::Jsonl,
+            "parquet" => OutputFormat::Parquet,
+            other => anyhow::bail!("不正な --output-format です: {}", other),
+        };
     }
     if let Some(threads) = args.threads {
         config.runtime.threads = threads;

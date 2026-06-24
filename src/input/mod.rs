@@ -1,8 +1,12 @@
+pub mod html;
 pub mod jsonl;
 pub mod text;
+pub mod warc;
 
+pub use html::HtmlFileSource;
 pub use jsonl::JsonlSource;
 pub use text::PlainTextSource;
+pub use warc::WarcSource;
 
 use crate::config::{InputConfig, InputFormat};
 use crate::record::RawRecord;
@@ -83,8 +87,7 @@ pub fn open_source(path: &Path, config: &InputConfig) -> anyhow::Result<Box<dyn 
             config.text_field.clone(),
             config.meta_fields.clone(),
         )?)),
-        InputFormat::Warc | InputFormat::Html => {
-            anyhow::bail!("input.format = {:?} はM1では未実装です", config.format)
-        }
+        InputFormat::Warc => Ok(Box::new(WarcSource::open(path)?)),
+        InputFormat::Html => Ok(Box::new(HtmlFileSource::open(path)?)),
     }
 }

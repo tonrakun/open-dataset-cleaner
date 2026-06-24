@@ -9,7 +9,7 @@ mod stats;
 pub use extract::ExtractConfig;
 pub use filters::{FiltersConfig, ThresholdConfig};
 pub use input::{InputConfig, InputFormat, PlainTextMode};
-pub use output::OutputConfig;
+pub use output::{OutputConfig, OutputFormat};
 pub use runtime::RuntimeConfig;
 pub use scoring::{LanguageScoringConfig, ScoringConfig, TextQualityScoringConfig};
 pub use stats::{StatsConfig, StatsFormat};
@@ -55,18 +55,6 @@ impl Config {
     }
 
     pub fn validate(&self) -> anyhow::Result<()> {
-        match self.input.format {
-            InputFormat::Text | InputFormat::Jsonl => {}
-            InputFormat::Warc | InputFormat::Html => {
-                anyhow::bail!(
-                    "input.format = \"{:?}\" はM1では未実装です（text/jsonlのみ対応）",
-                    self.input.format
-                );
-            }
-        }
-        if self.output.format != "jsonl" {
-            anyhow::bail!("output.format = \"{}\" はM1では未実装です（jsonlのみ対応）", self.output.format);
-        }
         if self.scoring.text_quality.perplexity_enabled {
             tracing::warn!("scoring.text_quality.perplexity_enabled はM1ではスタブのみのため無視されます");
         }
@@ -97,18 +85,21 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unsupported_input_format() {
+    fn accepts_warc_and_html_input_formats() {
         let toml_str = r#"
             [input]
             format = "warc"
             paths = []
             [output]
-            path = "./out.jsonl"
+            format = "parquet"
+            path = "./out/dataset"
             [scoring.language]
             allow = []
             [scoring.text_quality]
         "#;
         let config: Config = toml::from_str(toml_str).unwrap();
-        assert!(config.validate().is_err());
+        assert_eq!(config.input.format, InputFormat::Warc);
+        assert_eq!(config.output.format, OutputFormat::Parquet);
+        assert!(config.validate().is_ok());
     }
 }

@@ -1,8 +1,8 @@
-use crate::config::Config;
-use crate::extract::{Extractor, PassthroughExtractor};
+use crate::config::{Config, InputFormat, OutputFormat};
+use crate::extract::{Extractor, HtmlExtractor, PassthroughExtractor};
 use crate::filter;
 use crate::input::{discover_input_files, open_source};
-use crate::output::{JsonlSink, RecordSink};
+use crate::output::{JsonlSink, ParquetSink, RecordSink};
 use crate::record::{RawRecord, RecordOutcome};
 use crate::scoring::char_ratio::CharRatioScorer;
 use crate::scoring::language::LanguageScorer;
@@ -29,7 +29,10 @@ pub fn run(config: &Config, dry_run: bool) -> anyhow::Result<PipelineResult> {
         tracing::warn!("入力ファイルが見つかりませんでした");
     }
 
-    let extractor: Box<dyn Extractor> = Box::new(PassthroughExtractor);
+    let extractor: Box<dyn Extractor> = match config.input.format {
+        InputFormat::Warc | InputFormat::Html => Box::new(HtmlExtractor::from_config(&config.extract)),
+        InputFormat::Text | InputFormat::Jsonl => Box::new(PassthroughExtractor),
+    };
     let scorers: Vec<Box<dyn Scorer>> = vec![
         Box::new(CharRatioScorer),
         Box::new(TextQualityScorer),
@@ -44,10 +47,16 @@ pub fn run(config: &Config, dry_run: bool) -> anyhow::Result<PipelineResult> {
         } else {
             None
         };
-        Some(Box::new(JsonlSink::create(
-            Path::new(&config.output.path),
-            rejected_path.as_deref(),
-        )?))
+        Some(match config.output.format {
+            OutputFormat::Jsonl => Box::new(JsonlSink::create(
+                Path::new(&config.output.path),
+                rejected_path.as_deref(),
+            )?) as Box<dyn RecordSink>,
+            OutputFormat::Parquet => Box::new(ParquetSink::create(
+                Path::new(&config.output.path),
+                rejected_path.as_deref(),
+            )?) as Box<dyn RecordSink>,
+        })
     };
 
     let mut accumulator = StatsAccumulator::default();
