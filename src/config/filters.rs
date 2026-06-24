@@ -79,6 +79,9 @@ pub const KNOWN_RULE_FIELDS: &[&str] = &[
     "kanji_ratio",
     "alnum_ratio",
     "other_ratio",
+    "ad_keyword_ratio",
+    "seo_spam_score",
+    "naturalness_score",
 ];
 
 impl Rule {

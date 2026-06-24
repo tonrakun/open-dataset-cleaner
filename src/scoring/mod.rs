@@ -1,4 +1,5 @@
 pub mod char_ratio;
+pub mod content_quality;
 pub mod language;
 #[cfg(feature = "perplexity")]
 pub mod perplexity;
@@ -27,6 +28,12 @@ pub struct ScoreSet {
     pub sentence_length_variance: f64,
     pub has_residual_html: bool,
     pub has_residual_url: bool,
+    /// 広告っぽいキーワード/正規表現にマッチした語の比率(0.0〜1.0)。
+    pub ad_keyword_ratio: f64,
+    /// キーワード羅列・不自然な繰り返しパターンの検出スコア(0.0〜1.0、高いほどスパムらしい)。
+    pub seo_spam_score: f64,
+    /// 文章の自然さスコア(0.0〜1.0、高いほど自然)。Perplexityなしでも動く簡易統計版。
+    pub naturalness_score: f64,
     /// KenLM言語モデルによるperplexityスコア。`perplexity` feature無効時は常にNone。
     #[cfg(feature = "perplexity")]
     pub perplexity: Option<f64>,

@@ -21,6 +21,10 @@ pub struct OutputConfig {
     pub write_rejected: bool,
     #[serde(default)]
     pub rejected_path: Option<String>,
+    /// 1ファイルあたりの最大行数。設定すると `<stem>.<5桁連番>.<拡張子>` という
+    /// 名前で出力をシャード分割する。未設定(None)の場合は単一ファイルに出力する。
+    #[serde(default)]
+    pub shard_max_rows: Option<u64>,
 }
 
 impl OutputConfig {
@@ -42,6 +46,7 @@ impl Default for OutputConfig {
             path: "./out/dataset.jsonl".to_string(),
             write_rejected: false,
             rejected_path: None,
+            shard_max_rows: None,
         }
     }
 }

@@ -27,6 +27,9 @@ pub struct StatsAccumulator {
     pub kanji_ratio: RunningStats,
     pub alnum_ratio: RunningStats,
     pub other_ratio: RunningStats,
+    pub ad_keyword_ratio: RunningStats,
+    pub seo_spam_score: RunningStats,
+    pub naturalness_score: RunningStats,
 }
 
 impl StatsAccumulator {
@@ -59,6 +62,9 @@ impl StatsAccumulator {
         self.kanji_ratio.push(scores.char_ratios.kanji);
         self.alnum_ratio.push(scores.char_ratios.alnum);
         self.other_ratio.push(scores.char_ratios.other);
+        self.ad_keyword_ratio.push(scores.ad_keyword_ratio);
+        self.seo_spam_score.push(scores.seo_spam_score);
+        self.naturalness_score.push(scores.naturalness_score);
     }
 
     pub fn merge(self, other: Self) -> Self {
@@ -82,6 +88,9 @@ impl StatsAccumulator {
             kanji_ratio: self.kanji_ratio.merge(&other.kanji_ratio),
             alnum_ratio: self.alnum_ratio.merge(&other.alnum_ratio),
             other_ratio: self.other_ratio.merge(&other.other_ratio),
+            ad_keyword_ratio: self.ad_keyword_ratio.merge(&other.ad_keyword_ratio),
+            seo_spam_score: self.seo_spam_score.merge(&other.seo_spam_score),
+            naturalness_score: self.naturalness_score.merge(&other.naturalness_score),
         }
     }
 
@@ -103,6 +112,9 @@ impl StatsAccumulator {
             kanji_ratio: self.kanji_ratio.snapshot(),
             alnum_ratio: self.alnum_ratio.snapshot(),
             other_ratio: self.other_ratio.snapshot(),
+            ad_keyword_ratio: self.ad_keyword_ratio.snapshot(),
+            seo_spam_score: self.seo_spam_score.snapshot(),
+            naturalness_score: self.naturalness_score.snapshot(),
         }
     }
 
@@ -123,6 +135,9 @@ impl StatsAccumulator {
             kanji_ratio: RunningStats::restore(snapshot.kanji_ratio),
             alnum_ratio: RunningStats::restore(snapshot.alnum_ratio),
             other_ratio: RunningStats::restore(snapshot.other_ratio),
+            ad_keyword_ratio: RunningStats::restore(snapshot.ad_keyword_ratio),
+            seo_spam_score: RunningStats::restore(snapshot.seo_spam_score),
+            naturalness_score: RunningStats::restore(snapshot.naturalness_score),
         }
     }
 
@@ -150,6 +165,11 @@ impl StatsAccumulator {
                 alnum: self.alnum_ratio.summary().mean,
                 other: self.other_ratio.summary().mean,
             },
+            content_quality: ContentQualityDistributions {
+                ad_keyword_ratio: self.ad_keyword_ratio.summary(),
+                seo_spam_score: self.seo_spam_score.summary(),
+                naturalness_score: self.naturalness_score.summary(),
+            },
         }
     }
 }
@@ -172,6 +192,12 @@ pub struct StatsAccumulatorSnapshot {
     pub kanji_ratio: RunningStatsSnapshot,
     pub alnum_ratio: RunningStatsSnapshot,
     pub other_ratio: RunningStatsSnapshot,
+    #[serde(default)]
+    pub ad_keyword_ratio: RunningStatsSnapshot,
+    #[serde(default)]
+    pub seo_spam_score: RunningStatsSnapshot,
+    #[serde(default)]
+    pub naturalness_score: RunningStatsSnapshot,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -202,11 +228,19 @@ pub struct CharTypeRatiosAggregate {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct ContentQualityDistributions {
+    pub ad_keyword_ratio: RunningStatsSummary,
+    pub seo_spam_score: RunningStatsSummary,
+    pub naturalness_score: RunningStatsSummary,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct StatsReport {
     pub summary: Summary,
     pub rejection_reasons: BTreeMap<String, u64>,
     pub score_distributions: ScoreDistributions,
     pub char_type_ratios_aggregate: CharTypeRatiosAggregate,
+    pub content_quality: ContentQualityDistributions,
 }
 
 pub fn write_report(report: &StatsReport, path: Option<&Path>, format: StatsFormat) -> anyhow::Result<()> {

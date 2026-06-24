@@ -33,6 +33,21 @@ pub fn evaluate(
             return Err(RejectionReason::SymbolRatioExceeded);
         }
     }
+    if let Some(max) = scoring.content_quality.max_ad_keyword_ratio {
+        if scores.ad_keyword_ratio > max {
+            return Err(RejectionReason::AdKeywordRatioExceeded);
+        }
+    }
+    if let Some(max) = scoring.content_quality.max_seo_spam_score {
+        if scores.seo_spam_score > max {
+            return Err(RejectionReason::SeoSpamScoreExceeded);
+        }
+    }
+    if let Some(min) = scoring.content_quality.min_naturalness_score {
+        if scores.naturalness_score < min {
+            return Err(RejectionReason::NaturalnessScoreTooLow);
+        }
+    }
     if filters.thresholds.reject_on_residual_html && scores.has_residual_html {
         return Err(RejectionReason::ResidualHtmlDetected);
     }
@@ -88,6 +103,9 @@ fn evaluate_condition(cond: &Condition, scores: &ScoreSet) -> bool {
         "kanji_ratio" => compare_number(cond, scores.char_ratios.kanji),
         "alnum_ratio" => compare_number(cond, scores.char_ratios.alnum),
         "other_ratio" => compare_number(cond, scores.char_ratios.other),
+        "ad_keyword_ratio" => compare_number(cond, scores.ad_keyword_ratio),
+        "seo_spam_score" => compare_number(cond, scores.seo_spam_score),
+        "naturalness_score" => compare_number(cond, scores.naturalness_score),
         field if field.starts_with("plugin:") => {
             let key = &field["plugin:".len()..];
             scores.plugin_scores.get(key).map(|v| compare_number(cond, *v)).unwrap_or(false)

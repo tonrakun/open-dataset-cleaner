@@ -15,7 +15,7 @@ pub use input::{InputConfig, InputFormat, PlainTextMode};
 pub use output::{OutputConfig, OutputFormat};
 pub use plugins::PluginConfig;
 pub use runtime::RuntimeConfig;
-pub use scoring::{LanguageScoringConfig, ScoringConfig, TextQualityScoringConfig};
+pub use scoring::{ContentQualityScoringConfig, LanguageScoringConfig, ScoringConfig, TextQualityScoringConfig};
 pub use stats::{StatsConfig, StatsFormat};
 
 use std::path::Path;
@@ -64,6 +64,7 @@ impl Config {
                 );
             }
         }
+        self.scoring.content_quality.validate()?;
         self.dedup.validate()?;
         self.filters.validate()?;
         for plugin in &self.plugins {

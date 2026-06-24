@@ -9,6 +9,7 @@ format = "jsonl"            # jsonl | parquet
 path = "./out/dataset.jsonl"
 write_rejected = true
 rejected_path = "./out/dataset.rejected.jsonl"
+# shard_max_rows = 1000000  # 設定すると dataset.00000.jsonl, dataset.00001.jsonl ... に分割出力する
 
 [extract]
 validate_residual = true
@@ -27,6 +28,13 @@ max_duplicate_line_ratio = 0.3
 max_symbol_ratio = 0.15
 perplexity_enabled = false   # trueにする場合は`perplexity` cargo featureとkenlm_model_pathが必須
 # kenlm_model_path = "./models/ja.binary"
+
+[scoring.content_quality]
+ad_keywords = ["今すぐ購入", "激安", "buy now", "limited offer"]
+ad_patterns = ["\\d+%\\s*off"]   # 正規表現も追加可能(大文字小文字を区別しない)
+max_ad_keyword_ratio = 0.2
+max_seo_spam_score = 0.5
+min_naturalness_score = 0.3      # Perplexity無効時でも動く簡易統計ベースのスコア
 
 [filters.thresholds]
 reject_on_residual_html = true

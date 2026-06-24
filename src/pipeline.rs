@@ -8,6 +8,7 @@ use crate::output::{JsonlSink, ParquetSink, RecordSink};
 use crate::plugin::PluginManager;
 use crate::record::{RawRecord, RecordOutcome};
 use crate::scoring::char_ratio::CharRatioScorer;
+use crate::scoring::content_quality::ContentQualityScorer;
 use crate::scoring::language::LanguageScorer;
 use crate::scoring::text_quality::TextQualityScorer;
 use crate::scoring::{run_all_scorers, Scorer};
@@ -49,6 +50,7 @@ pub fn run(config: &Config, dry_run: bool) -> anyhow::Result<PipelineResult> {
         Box::new(CharRatioScorer),
         Box::new(TextQualityScorer),
         Box::new(LanguageScorer::from_allowed_codes(&config.scoring.language.allow)?),
+        Box::new(ContentQualityScorer::from_config(&config.scoring.content_quality)?),
     ];
     // perplexity_enabled時のfeature有効化・kenlm_model_path必須チェックはConfig::validateで
     // 既に行われているため、ここでは安全に組み立てるだけでよい。
@@ -125,14 +127,16 @@ pub fn run(config: &Config, dry_run: bool) -> anyhow::Result<PipelineResult> {
             None
         };
         Some(match config.output.format {
-            OutputFormat::Jsonl => Box::new(JsonlSink::create_or_append(
+            OutputFormat::Jsonl => Box::new(JsonlSink::create_with_sharding(
                 Path::new(&config.output.path),
                 rejected_path.as_deref(),
                 resuming_output,
+                config.output.shard_max_rows,
             )?) as Box<dyn RecordSink>,
-            OutputFormat::Parquet => Box::new(ParquetSink::create(
+            OutputFormat::Parquet => Box::new(ParquetSink::create_with_sharding(
                 Path::new(&config.output.path),
                 rejected_path.as_deref(),
+                config.output.shard_max_rows,
             )?) as Box<dyn RecordSink>,
         })
     };
