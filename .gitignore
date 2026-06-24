@@ -1,0 +1,34 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# t0k3n-mcp local index/cache (regenerable)
+.t0k3n/
+
+# checkpoint / runtime state
+/.checkpoints/
+*.checkpoint
+
+# generated dataset output (large, not source)
+/out/
+/output/
+
+# editor / IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# env / secrets
+.env
+.env.*
+
+# AI
+.claude/
+/.t0k3n
+CLAUDE.md
+.mcp.json
