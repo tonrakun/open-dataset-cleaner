@@ -3,6 +3,7 @@ mod extract;
 mod filters;
 mod input;
 mod output;
+mod plugins;
 mod runtime;
 mod scoring;
 mod stats;
@@ -12,6 +13,7 @@ pub use extract::ExtractConfig;
 pub use filters::{Condition, ConditionValue, FiltersConfig, NamedRule, Op, Rule, ThresholdConfig};
 pub use input::{InputConfig, InputFormat, PlainTextMode};
 pub use output::{OutputConfig, OutputFormat};
+pub use plugins::PluginConfig;
 pub use runtime::RuntimeConfig;
 pub use scoring::{LanguageScoringConfig, ScoringConfig, TextQualityScoringConfig};
 pub use stats::{StatsConfig, StatsFormat};
@@ -34,10 +36,8 @@ pub struct Config {
     pub stats: StatsConfig,
     #[serde(default)]
     pub dedup: DedupConfig,
-
-    // 将来セクション(M5以降)。現時点では受容するが効果なし=警告のみ。
     #[serde(default)]
-    pub plugins: Option<toml::Value>,
+    pub plugins: Vec<PluginConfig>,
 }
 
 impl Config {
@@ -47,9 +47,6 @@ impl Config {
         let config: Config = toml::from_str(&raw)
             .map_err(|e| anyhow::anyhow!("設定ファイル {} の解析に失敗: {}", path.display(), e))?;
         config.validate()?;
-        if config.plugins.is_some() {
-            tracing::warn!("[[plugins]] セクションはM5まで未対応のため無視されます");
-        }
         Ok(config)
     }
 
@@ -62,6 +59,9 @@ impl Config {
         }
         self.dedup.validate()?;
         self.filters.validate()?;
+        for plugin in &self.plugins {
+            plugin.validate()?;
+        }
         Ok(())
     }
 }

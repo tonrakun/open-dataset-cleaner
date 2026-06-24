@@ -88,6 +88,10 @@ fn evaluate_condition(cond: &Condition, scores: &ScoreSet) -> bool {
         "kanji_ratio" => compare_number(cond, scores.char_ratios.kanji),
         "alnum_ratio" => compare_number(cond, scores.char_ratios.alnum),
         "other_ratio" => compare_number(cond, scores.char_ratios.other),
+        field if field.starts_with("plugin:") => {
+            let key = &field["plugin:".len()..];
+            scores.plugin_scores.get(key).map(|v| compare_number(cond, *v)).unwrap_or(false)
+        }
         _ => false,
     }
 }
@@ -246,5 +250,30 @@ mod tests {
         let scores = ScoreSet { detected_language: Some("fr".to_string()), ..Default::default() };
         let result = evaluate(&scores, &base_scoring(), &filters);
         assert!(matches!(result, Err(RejectionReason::CustomRule(name)) if name == "lang_or_residual"));
+    }
+
+    #[test]
+    fn rejects_via_plugin_score_field() {
+        let mut filters = base_filters();
+        filters.rules.push(NamedRule {
+            name: "ad_score_high".to_string(),
+            when: toml::from_str("field = \"plugin:ad_detector\"\nop = \"gt\"\nvalue = 0.8\n").unwrap(),
+        });
+        let mut scores = ScoreSet::default();
+        scores.plugin_scores.insert("ad_detector".to_string(), 0.95);
+        let result = evaluate(&scores, &base_scoring(), &filters);
+        assert!(matches!(result, Err(RejectionReason::CustomRule(name)) if name == "ad_score_high"));
+    }
+
+    #[test]
+    fn ignores_missing_plugin_score() {
+        let mut filters = base_filters();
+        filters.rules.push(NamedRule {
+            name: "ad_score_high".to_string(),
+            when: toml::from_str("field = \"plugin:ad_detector\"\nop = \"gt\"\nvalue = 0.8\n").unwrap(),
+        });
+        let scores = ScoreSet::default();
+        let result = evaluate(&scores, &base_scoring(), &filters);
+        assert!(result.is_ok());
     }
 }

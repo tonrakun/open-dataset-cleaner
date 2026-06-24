@@ -7,6 +7,7 @@ pub mod input;
 pub mod logging;
 pub mod output;
 pub mod pipeline;
+pub mod plugin;
 pub mod record;
 pub mod scoring;
 pub mod stats;

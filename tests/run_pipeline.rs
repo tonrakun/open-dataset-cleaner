@@ -240,6 +240,62 @@ fn run_html_input_strips_boilerplate_and_converts_to_markdown() {
 }
 
 #[test]
+fn run_with_plugin_rejects_all_records() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = dir.path().join("plugin_out.jsonl");
+    let stats = dir.path().join("plugin_out.stats.json");
+    let input = fixtures_dir().join("jsonl/sample.jsonl");
+    let plugin_path = fixtures_dir().join("plugins/reject.wat");
+
+    let config_content = format!(
+        r#"
+[input]
+format = "jsonl"
+paths = []
+
+[output]
+path = "placeholder.jsonl"
+write_rejected = true
+
+[scoring.language]
+allow = []
+
+[scoring.text_quality]
+
+[[plugins]]
+name = "reject_all"
+path = '{path}'
+timeout_ms = 200
+"#,
+        path = plugin_path.to_str().unwrap()
+    );
+    let config_path = dir.path().join("plugin_config.toml");
+    fs::write(&config_path, config_content).unwrap();
+
+    run_odc(&[
+        "run",
+        "--config",
+        config_path.to_str().unwrap(),
+        "--input",
+        input.to_str().unwrap(),
+        "--output",
+        output.to_str().unwrap(),
+        "--stats-output",
+        stats.to_str().unwrap(),
+    ])
+    .success();
+
+    let stats_json: serde_json::Value = serde_json::from_str(&fs::read_to_string(&stats).unwrap()).unwrap();
+    assert_eq!(stats_json["summary"]["total_input_records"], 4);
+    assert_eq!(stats_json["summary"]["accepted_records"], 0);
+    assert_eq!(
+        stats_json["rejection_reasons"]["plugin:reject_all:blocked"],
+        4,
+        "全レコードがプラグインによって除外されるはず"
+    );
+}
+
+#[test]
 fn run_jsonl_input_outputs_parquet() {
     let dir = tempfile::tempdir().unwrap();
     let output = dir.path().join("out.parquet");

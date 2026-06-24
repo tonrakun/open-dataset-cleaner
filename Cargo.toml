@@ -33,6 +33,7 @@ ego-tree = "0.6"
 arrow = "53"
 parquet = "53"
 blake3 = "1"
+wasmtime = "38"
 
 [features]
 default = []

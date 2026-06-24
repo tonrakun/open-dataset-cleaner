@@ -99,6 +99,7 @@ impl RejectedColumns {
         self.reasons.push(reason.as_key().to_string());
         self.details.push(match reason {
             RejectionReason::ExtractionError(message) => Some(message.clone()),
+            RejectionReason::Plugin(detail) => Some(detail.clone()),
             _ => None,
         });
         Ok(())

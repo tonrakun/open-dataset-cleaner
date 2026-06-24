@@ -25,6 +25,8 @@ pub struct ScoreSet {
     pub sentence_length_variance: f64,
     pub has_residual_html: bool,
     pub has_residual_url: bool,
+    /// WASMプラグインが返したスコア。キーはプラグイン名。
+    pub plugin_scores: std::collections::BTreeMap<String, f64>,
 }
 
 pub trait Scorer: Send + Sync {

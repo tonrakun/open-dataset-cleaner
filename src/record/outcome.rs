@@ -15,6 +15,7 @@ pub enum RejectionReason {
     DuplicateNearDuplicate,
     ExtractionError(String),
     CustomRule(String),
+    Plugin(String),
 }
 
 impl RejectionReason {
@@ -30,6 +31,7 @@ impl RejectionReason {
             RejectionReason::DuplicateNearDuplicate => "duplicate_near_duplicate".to_string(),
             RejectionReason::ExtractionError(_) => "extraction_error".to_string(),
             RejectionReason::CustomRule(name) => format!("custom_rule:{}", name),
+            RejectionReason::Plugin(detail) => format!("plugin:{}", detail),
         }
     }
 }

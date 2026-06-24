@@ -4,6 +4,7 @@ use crate::extract::{Extractor, HtmlExtractor, PassthroughExtractor};
 use crate::filter;
 use crate::input::{discover_input_files, open_source};
 use crate::output::{JsonlSink, ParquetSink, RecordSink};
+use crate::plugin::PluginManager;
 use crate::record::{RawRecord, RecordOutcome};
 use crate::scoring::char_ratio::CharRatioScorer;
 use crate::scoring::language::LanguageScorer;
@@ -39,6 +40,7 @@ pub fn run(config: &Config, dry_run: bool) -> anyhow::Result<PipelineResult> {
         Box::new(TextQualityScorer),
         Box::new(LanguageScorer::from_allowed_codes(&config.scoring.language.allow)?),
     ];
+    let plugins = PluginManager::from_config(&config.plugins)?;
 
     let mut sink: Option<Box<dyn RecordSink>> = if dry_run {
         None
@@ -108,6 +110,7 @@ pub fn run(config: &Config, dry_run: bool) -> anyhow::Result<PipelineResult> {
                             &scorers,
                             &config.scoring,
                             &config.filters,
+                            plugins.as_ref(),
                         )
                     })
                     .collect();
@@ -179,6 +182,7 @@ fn process_one(
     scorers: &[Box<dyn Scorer>],
     scoring_cfg: &crate::config::ScoringConfig,
     filters_cfg: &crate::config::FiltersConfig,
+    plugins: Option<&PluginManager>,
 ) -> RecordOutcome {
     let text = match extractor.extract(&raw) {
         Ok(t) => t,
@@ -189,7 +193,7 @@ fn process_one(
             }
         }
     };
-    let scores = match run_all_scorers(&text, scorers) {
+    let mut scores = match run_all_scorers(&text, scorers) {
         Ok(s) => s,
         Err(e) => {
             return RecordOutcome::Error {
@@ -200,6 +204,26 @@ fn process_one(
     };
     let mut record = raw;
     record.text = text;
+
+    if let Some(plugins) = plugins {
+        match plugins.evaluate(&record.text, &record.meta) {
+            Ok(outcome) => {
+                for (name, score) in outcome.scores {
+                    scores.plugin_scores.insert(name, score);
+                }
+                if let Some(reason) = outcome.rejection {
+                    return RecordOutcome::Rejected { record, scores, reason };
+                }
+            }
+            Err(e) => {
+                return RecordOutcome::Error {
+                    source_path: record.source_path.clone(),
+                    message: e.to_string(),
+                }
+            }
+        }
+    }
+
     match filter::evaluate(&scores, scoring_cfg, filters_cfg) {
         Ok(()) => RecordOutcome::Accepted { record, scores },
         Err(reason) => RecordOutcome::Rejected { record, scores, reason },

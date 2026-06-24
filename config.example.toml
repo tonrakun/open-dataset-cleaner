@@ -46,6 +46,17 @@ when = { any = [
     { field = "has_residual_html", op = "eq", value = true },
 ] }
 
+# WASMプラグイン(wasmtimeでサンドボックス実行)。
+# プラグインは memory をexportし、odc_alloc(len:i32)->i32 と
+# odc_run(ptr:i32,len:i32)->i64 (出力ポインタ<<32|出力長) をexportする必要がある。
+# JSON入力: {"text":..., "meta":..., "config":...} / JSON出力: {"score":?,"accept":?,"reason":?}
+# [[plugins]]
+# name = "ad_detector"
+# path = "./plugins/ad_detector.wasm"
+# config = { sensitivity = "medium" }
+# timeout_ms = 100              # 1回の呼び出しの最大実行時間
+# memory_limit_bytes = 16777216 # 1回の呼び出しで許容する最大メモリ(16MiB)
+
 [dedup]
 exact = true
 minhash_lsh = true

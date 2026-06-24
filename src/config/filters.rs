@@ -92,9 +92,10 @@ impl Rule {
             }
             Rule::Not { not } => not.validate(),
             Rule::Cond(cond) => {
-                if !KNOWN_RULE_FIELDS.contains(&cond.field.as_str()) {
+                let is_plugin_field = cond.field.starts_with("plugin:");
+                if !is_plugin_field && !KNOWN_RULE_FIELDS.contains(&cond.field.as_str()) {
                     anyhow::bail!(
-                        "filters.rules: 未知のフィールド名です: {} (使用可能: {})",
+                        "filters.rules: 未知のフィールド名です: {} (使用可能: {}, またはプラグインスコアは plugin:<name>)",
                         cond.field,
                         KNOWN_RULE_FIELDS.join(", ")
                     );
@@ -111,5 +112,24 @@ impl FiltersConfig {
             rule.when.validate().map_err(|e| anyhow::anyhow!("filters.rules[{}]: {}", rule.name, e))?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accepts_plugin_prefixed_field() {
+        let rule: Rule =
+            toml::from_str("field = \"plugin:ad_detector\"\nop = \"gt\"\nvalue = 0.5\n").unwrap();
+        assert!(rule.validate().is_ok());
+    }
+
+    #[test]
+    fn rejects_unknown_field() {
+        let rule: Rule =
+            toml::from_str("field = \"totally_unknown\"\nop = \"gt\"\nvalue = 0.5\n").unwrap();
+        assert!(rule.validate().is_err());
     }
 }
