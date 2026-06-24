@@ -1,5 +1,7 @@
 pub mod char_ratio;
 pub mod language;
+#[cfg(feature = "perplexity")]
+pub mod perplexity;
 pub mod text_quality;
 
 use serde::Serialize;
@@ -25,6 +27,9 @@ pub struct ScoreSet {
     pub sentence_length_variance: f64,
     pub has_residual_html: bool,
     pub has_residual_url: bool,
+    /// KenLM言語モデルによるperplexityスコア。`perplexity` feature無効時は常にNone。
+    #[cfg(feature = "perplexity")]
+    pub perplexity: Option<f64>,
     /// WASMプラグインが返したスコア。キーはプラグイン名。
     pub plugin_scores: std::collections::BTreeMap<String, f64>,
 }

@@ -1,4 +1,5 @@
 use crate::config::DedupConfig;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 const MERSENNE_PRIME: u64 = (1u64 << 61) - 1;
@@ -151,6 +152,29 @@ impl NearDuplicateDeduper {
         self.signatures.push(signature);
         None
     }
+
+    /// チェックポイント保存用に、登録済みシグネチャ・LSHバケットを書き出す。
+    /// `coeffs`は設定から決定的に再生成されるため保存不要。
+    pub fn snapshot(&self) -> NearDuplicateDeduperSnapshot {
+        NearDuplicateDeduperSnapshot {
+            signatures: self.signatures.clone(),
+            buckets: self.buckets.iter().map(|(k, v)| (*k, v.clone())).collect(),
+        }
+    }
+
+    /// `new(config)` で構築済みのインスタンス(係数は設定から再生成される)に、
+    /// チェックポイントから読み込んだシグネチャ・バケットを復元する。
+    pub fn restore_into(&mut self, snapshot: NearDuplicateDeduperSnapshot) {
+        self.signatures = snapshot.signatures;
+        self.buckets = snapshot.buckets.into_iter().collect();
+    }
+}
+
+/// チェックポイント保存用のシリアライズ可能なスナップショット。
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct NearDuplicateDeduperSnapshot {
+    signatures: Vec<Vec<u64>>,
+    buckets: Vec<((usize, u64), Vec<usize>)>,
 }
 
 #[cfg(test)]

@@ -16,6 +16,10 @@ pub struct TextQualityScoringConfig {
     pub max_symbol_ratio: Option<f64>,
     #[serde(default)]
     pub perplexity_enabled: bool,
+    /// KenLMのARPA/binary形式言語モデルファイルへのパス。
+    /// `perplexity_enabled = true` の場合は必須(`perplexity` cargo featureが必要)。
+    #[serde(default)]
+    pub kenlm_model_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]

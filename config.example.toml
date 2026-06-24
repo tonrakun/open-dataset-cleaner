@@ -25,7 +25,8 @@ max_mixed_ratio = 0.2
 [scoring.text_quality]
 max_duplicate_line_ratio = 0.3
 max_symbol_ratio = 0.15
-perplexity_enabled = false   # trueでも警告を出し無視（M1はスタブ）
+perplexity_enabled = false   # trueにする場合は`perplexity` cargo featureとkenlm_model_pathが必須
+# kenlm_model_path = "./models/ja.binary"
 
 [filters.thresholds]
 reject_on_residual_html = true
@@ -69,6 +70,7 @@ shingle_size = 25              # 文字単位n-gramの窓幅
 threads = 0                  # 0 = 論理コア数
 batch_size = 1000
 log_level = "info"
+# checkpoint_dir = "./.checkpoints"  # 設定するとファイル単位で再開可能(JSONL出力時のみ対応)
 
 [stats]
 output_path = "./out/dataset.stats.json"

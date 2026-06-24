@@ -20,6 +20,8 @@ pub struct RunArgs {
     pub batch_size: Option<usize>,
     #[arg(long = "log-level")]
     pub log_level: Option<String>,
+    #[arg(long = "checkpoint-dir")]
+    pub checkpoint_dir: Option<String>,
     #[arg(long = "stats-output")]
     pub stats_output: Option<String>,
     #[arg(long = "stats-format")]
@@ -77,6 +79,9 @@ fn merge_cli(config: &mut Config, args: &RunArgs) -> anyhow::Result<()> {
     }
     if let Some(log_level) = &args.log_level {
         config.runtime.log_level = log_level.clone();
+    }
+    if let Some(checkpoint_dir) = &args.checkpoint_dir {
+        config.runtime.checkpoint_dir = Some(checkpoint_dir.clone());
     }
     if let Some(stats_output) = &args.stats_output {
         config.stats.output_path = Some(stats_output.clone());

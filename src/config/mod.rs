@@ -52,10 +52,17 @@ impl Config {
 
     pub fn validate(&self) -> anyhow::Result<()> {
         if self.scoring.text_quality.perplexity_enabled {
-            tracing::warn!("scoring.text_quality.perplexity_enabled はM1ではスタブのみのため無視されます");
-        }
-        if self.runtime.checkpoint_dir.is_some() {
-            tracing::warn!("runtime.checkpoint_dir はM1では未対応のため無視されます");
+            if !cfg!(feature = "perplexity") {
+                anyhow::bail!(
+                    "scoring.text_quality.perplexity_enabled=true ですが `perplexity` cargo featureが無効です。\
+                     `cargo build --features perplexity` (またはバイナリ配布版で同機能を有効にしたビルド)を使用してください。"
+                );
+            }
+            if self.scoring.text_quality.kenlm_model_path.is_none() {
+                anyhow::bail!(
+                    "scoring.text_quality.perplexity_enabled=true の場合、kenlm_model_path の指定が必要です"
+                );
+            }
         }
         self.dedup.validate()?;
         self.filters.validate()?;
@@ -97,6 +104,25 @@ mod tests {
         config.dedup.num_hashes = 100;
         config.dedup.num_bands = 7;
         assert!(config.validate().is_err());
+    }
+
+    #[test]
+    #[cfg(not(feature = "perplexity"))]
+    fn rejects_perplexity_enabled_without_feature() {
+        let mut config = Config::default();
+        config.scoring.text_quality.perplexity_enabled = true;
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    #[cfg(feature = "perplexity")]
+    fn rejects_perplexity_enabled_without_model_path() {
+        let mut config = Config::default();
+        config.scoring.text_quality.perplexity_enabled = true;
+        assert!(config.validate().is_err());
+
+        config.scoring.text_quality.kenlm_model_path = Some("./model.bin".to_string());
+        assert!(config.validate().is_ok());
     }
 
     #[test]

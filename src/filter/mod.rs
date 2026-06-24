@@ -184,6 +184,7 @@ mod tests {
             max_duplicate_line_ratio: None,
             max_symbol_ratio: Some(0.1),
             perplexity_enabled: false,
+            kenlm_model_path: None,
         };
         let scores = ScoreSet { symbol_digit_ratio: 0.9, ..Default::default() };
         let result = evaluate(&scores, &scoring, &base_filters());

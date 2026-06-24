@@ -30,20 +30,42 @@ pub struct JsonlSink {
 
 impl JsonlSink {
     pub fn create(accepted_path: &Path, rejected_path: Option<&Path>) -> anyhow::Result<Self> {
+        Self::open(accepted_path, rejected_path, false)
+    }
+
+    /// チェックポイントからの再開時に使う。`append=true`の場合、既存ファイルの末尾に
+    /// 追記する(前回実行までに書き込まれた採用/除外レコードを保持したまま続きから書き込む)。
+    pub fn create_or_append(
+        accepted_path: &Path,
+        rejected_path: Option<&Path>,
+        append: bool,
+    ) -> anyhow::Result<Self> {
+        Self::open(accepted_path, rejected_path, append)
+    }
+
+    fn open(accepted_path: &Path, rejected_path: Option<&Path>, append: bool) -> anyhow::Result<Self> {
         if let Some(parent) = accepted_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let accepted_writer = BufWriter::new(File::create(accepted_path)?);
+        let accepted_writer = BufWriter::new(open_file(accepted_path, append)?);
         let rejected_writer = match rejected_path {
             Some(p) => {
                 if let Some(parent) = p.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
-                Some(BufWriter::new(File::create(p)?))
+                Some(BufWriter::new(open_file(p, append)?))
             }
             None => None,
         };
         Ok(Self { accepted_writer, rejected_writer })
+    }
+}
+
+fn open_file(path: &Path, append: bool) -> std::io::Result<File> {
+    if append {
+        std::fs::OpenOptions::new().create(true).append(true).open(path)
+    } else {
+        File::create(path)
     }
 }
 

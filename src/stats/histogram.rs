@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Welfordのオンラインアルゴリズムによる並列安全な統計集計（mean/variance/min/max）。
 #[derive(Debug, Clone)]
@@ -70,6 +70,32 @@ impl RunningStats {
             variance: self.variance(),
         }
     }
+
+    /// チェックポイント保存用のスナップショットに変換する。
+    /// `min`/`max`はcount==0時に`f64::INFINITY`/`NEG_INFINITY`を取り、JSONとして
+    /// シリアライズできないため、その場合は0.0に正規化する(`restore`で復元時に元に戻す)。
+    pub fn snapshot(&self) -> RunningStatsSnapshot {
+        RunningStatsSnapshot {
+            count: self.count,
+            mean: self.mean,
+            m2: self.m2,
+            min: if self.count == 0 { 0.0 } else { self.min },
+            max: if self.count == 0 { 0.0 } else { self.max },
+        }
+    }
+
+    pub fn restore(snapshot: RunningStatsSnapshot) -> Self {
+        if snapshot.count == 0 {
+            return Self::default();
+        }
+        Self {
+            count: snapshot.count,
+            mean: snapshot.mean,
+            m2: snapshot.m2,
+            min: snapshot.min,
+            max: snapshot.max,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -78,6 +104,15 @@ pub struct RunningStatsSummary {
     pub max: f64,
     pub mean: f64,
     pub variance: f64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct RunningStatsSnapshot {
+    pub count: u64,
+    pub mean: f64,
+    pub m2: f64,
+    pub min: f64,
+    pub max: f64,
 }
 
 #[cfg(test)]

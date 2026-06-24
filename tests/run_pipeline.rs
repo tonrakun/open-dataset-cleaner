@@ -339,3 +339,80 @@ fn run_jsonl_input_outputs_parquet() {
     let rejected_rows: usize = rejected_reader.map(|b| b.unwrap().num_rows()).sum();
     assert_eq!(rejected_rows, 2, "HTML残留行と重複行率超過の2件が除外されるはず");
 }
+
+#[test]
+fn run_resumes_via_checkpoint_and_skips_completed_files() {
+    let dir = tempfile::tempdir().unwrap();
+    let input_dir = dir.path().join("input");
+    fs::create_dir_all(&input_dir).unwrap();
+    let checkpoint_dir = dir.path().join("checkpoints");
+    let output = dir.path().join("out.jsonl");
+    let config = fixtures_dir().join("configs/basic.toml");
+    let input_glob = input_dir.join("*.jsonl");
+
+    fs::write(
+        input_dir.join("a.jsonl"),
+        "{\"text\": \"これは最初のファイルの日本語テキストです。今日は天気が良いですね。\", \"id\": 1}\n",
+    )
+    .unwrap();
+
+    let run_args = |stats_name: &str| {
+        vec![
+            "run".to_string(),
+            "--config".to_string(),
+            config.to_str().unwrap().to_string(),
+            "--input".to_string(),
+            input_glob.to_str().unwrap().to_string(),
+            "--output".to_string(),
+            output.to_str().unwrap().to_string(),
+            "--checkpoint-dir".to_string(),
+            checkpoint_dir.to_str().unwrap().to_string(),
+            "--stats-output".to_string(),
+            dir.path().join(stats_name).to_str().unwrap().to_string(),
+        ]
+    };
+    let args1 = run_args("first.stats.json");
+    run_odc(&args1.iter().map(String::as_str).collect::<Vec<_>>()).success();
+
+    let lines_after_first_run: Vec<String> =
+        fs::read_to_string(&output).unwrap().lines().map(|l| l.to_string()).collect();
+    assert_eq!(lines_after_first_run.len(), 1, "1回目はaファイルの1件のみ採用されるはず");
+
+    let checkpoint_value: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(checkpoint_dir.join("checkpoint.json")).unwrap()).unwrap();
+    assert_eq!(checkpoint_value["completed_files"].as_array().unwrap().len(), 1);
+
+    fs::write(
+        input_dir.join("b.jsonl"),
+        "{\"text\": \"これは2回目に追加されたファイルの日本語テキストです。明日も晴れるといいですね。\", \"id\": 2}\n",
+    )
+    .unwrap();
+
+    let args2 = run_args("second.stats.json");
+    run_odc(&args2.iter().map(String::as_str).collect::<Vec<_>>()).success();
+
+    let lines_after_second_run: Vec<String> =
+        fs::read_to_string(&output).unwrap().lines().map(|l| l.to_string()).collect();
+    assert_eq!(
+        lines_after_second_run.len(),
+        2,
+        "2回目はbファイルの1件が追記され、aファイルは再処理されないはず"
+    );
+    assert_eq!(
+        lines_after_second_run[0], lines_after_first_run[0],
+        "チェックポイントによりaファイルの出力はそのまま保持されるはず"
+    );
+    let second_record: serde_json::Value = serde_json::from_str(&lines_after_second_run[1]).unwrap();
+    assert!(second_record["id"].as_str().unwrap().contains("b.jsonl:1"));
+
+    let checkpoint_value: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(checkpoint_dir.join("checkpoint.json")).unwrap()).unwrap();
+    assert_eq!(checkpoint_value["completed_files"].as_array().unwrap().len(), 2);
+
+    let second_stats: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(dir.path().join("second.stats.json")).unwrap()).unwrap();
+    assert_eq!(
+        second_stats["summary"]["accepted_records"], 2,
+        "再開後の統計はチェックポイントから復元した1回目分を含むはず"
+    );
+}

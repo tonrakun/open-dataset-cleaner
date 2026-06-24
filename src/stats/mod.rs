@@ -1,11 +1,11 @@
 pub mod histogram;
 
-pub use histogram::{RunningStats, RunningStatsSummary};
+pub use histogram::{RunningStats, RunningStatsSnapshot, RunningStatsSummary};
 
 use crate::config::StatsFormat;
 use crate::record::RecordOutcome;
 use crate::scoring::ScoreSet;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::time::Duration;
@@ -85,6 +85,47 @@ impl StatsAccumulator {
         }
     }
 
+    /// チェックポイント保存用のスナップショットに変換する。
+    pub fn snapshot(&self) -> StatsAccumulatorSnapshot {
+        StatsAccumulatorSnapshot {
+            total: self.total,
+            accepted: self.accepted,
+            rejected: self.rejected,
+            errors: self.errors,
+            rejection_reasons: self.rejection_reasons.clone(),
+            language_mixed_ratio: self.language_mixed_ratio.snapshot(),
+            duplicate_line_ratio: self.duplicate_line_ratio.snapshot(),
+            symbol_digit_ratio: self.symbol_digit_ratio.snapshot(),
+            avg_sentence_length: self.avg_sentence_length.snapshot(),
+            sentence_length_variance: self.sentence_length_variance.snapshot(),
+            hiragana_ratio: self.hiragana_ratio.snapshot(),
+            katakana_ratio: self.katakana_ratio.snapshot(),
+            kanji_ratio: self.kanji_ratio.snapshot(),
+            alnum_ratio: self.alnum_ratio.snapshot(),
+            other_ratio: self.other_ratio.snapshot(),
+        }
+    }
+
+    pub fn restore(snapshot: StatsAccumulatorSnapshot) -> Self {
+        Self {
+            total: snapshot.total,
+            accepted: snapshot.accepted,
+            rejected: snapshot.rejected,
+            errors: snapshot.errors,
+            rejection_reasons: snapshot.rejection_reasons,
+            language_mixed_ratio: RunningStats::restore(snapshot.language_mixed_ratio),
+            duplicate_line_ratio: RunningStats::restore(snapshot.duplicate_line_ratio),
+            symbol_digit_ratio: RunningStats::restore(snapshot.symbol_digit_ratio),
+            avg_sentence_length: RunningStats::restore(snapshot.avg_sentence_length),
+            sentence_length_variance: RunningStats::restore(snapshot.sentence_length_variance),
+            hiragana_ratio: RunningStats::restore(snapshot.hiragana_ratio),
+            katakana_ratio: RunningStats::restore(snapshot.katakana_ratio),
+            kanji_ratio: RunningStats::restore(snapshot.kanji_ratio),
+            alnum_ratio: RunningStats::restore(snapshot.alnum_ratio),
+            other_ratio: RunningStats::restore(snapshot.other_ratio),
+        }
+    }
+
     pub fn finalize(&self, elapsed: Duration) -> StatsReport {
         StatsReport {
             summary: Summary {
@@ -111,6 +152,26 @@ impl StatsAccumulator {
             },
         }
     }
+}
+
+/// チェックポイント保存用のシリアライズ可能なスナップショット。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StatsAccumulatorSnapshot {
+    pub total: u64,
+    pub accepted: u64,
+    pub rejected: u64,
+    pub errors: u64,
+    pub rejection_reasons: BTreeMap<String, u64>,
+    pub language_mixed_ratio: RunningStatsSnapshot,
+    pub duplicate_line_ratio: RunningStatsSnapshot,
+    pub symbol_digit_ratio: RunningStatsSnapshot,
+    pub avg_sentence_length: RunningStatsSnapshot,
+    pub sentence_length_variance: RunningStatsSnapshot,
+    pub hiragana_ratio: RunningStatsSnapshot,
+    pub katakana_ratio: RunningStatsSnapshot,
+    pub kanji_ratio: RunningStatsSnapshot,
+    pub alnum_ratio: RunningStatsSnapshot,
+    pub other_ratio: RunningStatsSnapshot,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -212,6 +273,35 @@ mod tests {
         assert_eq!(acc.rejected, 1);
         assert_eq!(acc.errors, 1);
         assert_eq!(acc.rejection_reasons.get("language_not_allowed"), Some(&1));
+    }
+
+    #[test]
+    fn snapshot_round_trip_via_json_preserves_counts_and_distributions() {
+        let mut acc = StatsAccumulator::default();
+        acc.record_outcome(&RecordOutcome::Accepted { record: dummy_record(), scores: ScoreSet::default() });
+        acc.record_outcome(&RecordOutcome::Rejected {
+            record: dummy_record(),
+            scores: ScoreSet::default(),
+            reason: RejectionReason::LanguageNotAllowed,
+        });
+
+        let json = serde_json::to_string(&acc.snapshot()).unwrap();
+        let restored = StatsAccumulator::restore(serde_json::from_str(&json).unwrap());
+
+        assert_eq!(restored.total, 2);
+        assert_eq!(restored.accepted, 1);
+        assert_eq!(restored.rejected, 1);
+        assert_eq!(restored.rejection_reasons.get("language_not_allowed"), Some(&1));
+        assert_eq!(restored.duplicate_line_ratio.count, acc.duplicate_line_ratio.count);
+    }
+
+    #[test]
+    fn empty_accumulator_snapshot_round_trips_via_json() {
+        let acc = StatsAccumulator::default();
+        let json = serde_json::to_string(&acc.snapshot()).unwrap();
+        let restored = StatsAccumulator::restore(serde_json::from_str(&json).unwrap());
+        assert_eq!(restored.total, 0);
+        assert_eq!(restored.duplicate_line_ratio.summary().min, 0.0);
     }
 
     #[test]
